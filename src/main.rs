@@ -43,8 +43,8 @@ impl BIP_39 {
         num
     }
     
-    fn _pad_left(u32_bin: &str, final_len: usize) -> String {
-        let mut l = u32_bin.len();
+    fn _pad_left(bin: &str, final_len: usize) -> String {
+        let mut l = bin.len();
         let mut final_bin = "".to_owned();
         if l < final_len {
             l = final_len - l;
@@ -52,7 +52,7 @@ impl BIP_39 {
                 final_bin.push_str("0");
             }
         }
-        final_bin.push_str(u32_bin);
+        final_bin.push_str(bin);
         return final_bin;
     }
 
