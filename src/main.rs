@@ -59,7 +59,7 @@ impl BIP39 {
                 14 => hexed.push_str("e"),
                 15 => hexed.push_str("f"),
                 0|1|2|3|4|5|6|7|8|9 => hexed.push_str(format!("{}", x).as_str()),
-                _ => println!(""),
+                _ => (),
             };
         }
         hexed
@@ -116,7 +116,7 @@ impl BIP39 {
         // sha256 result is [u8] of 32 len -> 8x32 = 256 
         let result_first_byte_bin = Self::_lpad(format!("{:b}", result[0]).as_str(), 8);
       
-        // now append last checksum_bit_len number of bits 
+        // now append first checksum_bit_len number of bits 
         // from sha256 of entropy, to the entropy string itself
         // to make its length divisible of bip39 magic number 11!
         srand_str.push_str(&result_first_byte_bin[0..checksum_bit_len]);
