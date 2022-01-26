@@ -1,27 +1,24 @@
 use dotenv::dotenv;
-use sha2::{Sha256, Sha512, Digest};
-use secp256k1::{Secp256k1, Message, SecretKey, PublicKey};
+use sha2::{Sha256, Digest};
 use rand::rngs::OsRng;
 use rand::RngCore;
+use ring::pbkdf2;
 
 use std::{
     fs::File,
     io::{prelude::*, BufReader},
-    path::Path,
+    num::NonZeroU32
 };
-
-use atoi::atoi;
-
 const BIP39_MAGIC_NUM: usize = 11;
 const ENT_SZ_IDX: usize = 0;
 const ENT_SZ: [usize; 5] = [128, 160, 192, 224, 256];
 
-struct BIP_39 {
+struct BIP39 {
     mnemonic: String,
     seed: String
 }
 
-impl BIP_39 { 
+impl BIP39 { 
     
     fn _words_from_wordlist(path: &str) -> Vec<String> {
         let file = File::open(path).expect("no such file");
@@ -48,7 +45,7 @@ impl BIP_39 {
         let mut final_bin = "".to_owned();
         if l < final_len {
             l = final_len - l;
-            for i in 0..l {
+            for _i in 0..l {
                 final_bin.push_str("0");
             }
         }
@@ -74,7 +71,7 @@ impl BIP_39 {
     fn _get_entropy() -> String {
         let u32_parts = ENT_SZ[ENT_SZ_IDX] / 32;
         let mut srand_str = "".to_owned();
-        for i in 0..u32_parts {
+        for _i in 0..u32_parts {
             let rnd_u32 = OsRng.next_u32();
             let bin_u32 = format!("{:b}", rnd_u32);
             // ensure binary is of 32 bits length!
@@ -97,11 +94,26 @@ impl BIP_39 {
         .collect()
     }
     
-    // fn generate_seed(& mut self) {
+    fn generate_seed(& mut self, wordlist_path: &str) {
+        let mut passphrase: String = "".to_owned();
+        println!("Enter a passphrase for extra level of security:");
+        std::io::stdin().read_line(&mut passphrase).expect("some problem");
+        self.mnemonic =  Self::_generate_mnemonic(wordlist_path);
+        let mut salt = "mnemonic ".to_owned();
+        salt.push_str(&passphrase.as_str());
+        // let digest: MessageDigest = MessageDigest::sha256();
+        let mut output: [u8; 32] = [0; 32];
         
-    // }
+        pbkdf2::derive(
+            pbkdf2::PBKDF2_HMAC_SHA256, 
+            NonZeroU32::new(2048).unwrap(), 
+            &salt.as_bytes(),
+          self.mnemonic.as_bytes(), 
+          &mut output);
+        self.seed = hex::encode(output);
+    }
     
-    fn generate_mnemonic(& mut self, wordlist_path: &str) {
+    fn _generate_mnemonic(wordlist_path: &str) -> String {
         let words = Self::_words_from_wordlist(wordlist_path);
         let entropy_with_checksum = Self::_get_entropy();
         let mut mnemonic_words = Vec::<&str>::new();
@@ -109,7 +121,7 @@ impl BIP_39 {
         for i in word_indexes {
             mnemonic_words.push(words[i].as_str());
         }
-        self.mnemonic =  mnemonic_words.join(" ");
+        mnemonic_words.join(" ")
     }
 
     fn get_seed(&self) -> &str {
@@ -124,24 +136,25 @@ impl BIP_39 {
     
 }
 
-struct BIP_32 {
-    mnemonic: String,
-    seed: String
-}
+// struct BIP32 {
+//     mnemonic: String,
+//     seed: String
+// }
 
-struct BIP_44 {
-    mnemonic: String,
-    seed: String
-}
+// struct BIP44 {
+//     mnemonic: String,
+//     seed: String
+// }
 
 fn main() {
+    println!("Starting...");
     dotenv().ok();
-    let mut bip_39: BIP_39 = BIP_39 { 
+    let mut bip_39: BIP39 = BIP39 { 
         seed: String::from(""), 
         mnemonic: String::from("")
     };
     let path = std::env::var("EN_WORDLIST_PATH").unwrap();
-    
-    bip_39.generate_mnemonic(path.as_str());
-    println!("mnemonic: {:?}", bip_39.get_mnemonic());
+    println!("generating mnemonic {}", path);
+    bip_39.generate_seed(path.as_str());
+    println!("\nmnemonic: {}\nseed: {:}\n", bip_39.get_mnemonic(), bip_39.get_seed())
 }
