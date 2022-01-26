@@ -9,9 +9,16 @@ use std::{
     io::{prelude::*, BufReader},
     num::NonZeroU32
 };
+
 const BIP39_MAGIC_NUM: usize = 11;
-const ENT_SZ_IDX: usize = 0;
-const ENT_SZ: [usize; 5] = [128, 160, 192, 224, 256];
+const ENT_SZ_IDX: usize = 0; // default is 12 word mnemonic!
+const ENT_SZ: [usize; 5] = [
+    128,    // 12 word mnemonic 
+    160,    // 15 ..
+    192,    // 18 ..
+    224,    // 21 ..
+    256     // 24 ..
+];
 
 struct BIP39 {
     mnemonic: String,
@@ -36,11 +43,54 @@ impl BIP39 {
             num = num + (usize::pow(2, i) * b.to_string().parse::<usize>().unwrap());
             i += 1
         }
-        //println!("\nbin: {} num: {}\n\n", bin, num);
         num
     }
     
-    fn _pad_left(bin: &str, final_len: usize) -> String {
+    fn _bin2hex(s: &str) -> String {
+        let len = s.len();
+        let mut hexed: String = "".to_owned();
+        for i in (0..len).step_by(4) {
+            let x = Self::_bin2int(&s[i..i+4]);
+            match x {
+                10 => hexed.push_str("a"),
+                11 => hexed.push_str("b"),
+                12 => hexed.push_str("c"),
+                13 => hexed.push_str("d"),
+                14 => hexed.push_str("e"),
+                15 => hexed.push_str("f"),
+                0|1|2|3|4|5|6|7|8|9 => hexed.push_str(format!("{}", x).as_str()),
+                _ => println!(""),
+            };
+        }
+        hexed
+    }
+    
+    fn _hex2bin(s: &str, bin_len: usize) -> String {
+        let len = s.len();
+        let mut bined: String = "".to_owned();
+        for i in (0..len).step_by(2) {
+            let slic = &s[i..i+2];
+            let bin = format!("{:b}", Self::_bin2int(slic));
+            let padded = Self::_lpad(bin.as_str(), bin_len);
+           // println!("slice: {}\nbin: {}\npadded: {}", slic, bin, padded);
+            bined.push_str(padded.as_str());
+        }
+        println!("\nbined: {}\ns: {}", bined, s);
+        bined
+    }
+
+    fn _hexstr2bytes(s: &str) -> Vec<u8> {
+        let len = s.len();
+        let mut bytes: Vec<u8> = Vec::<u8>::new();
+        for i in (0..len).step_by(2) {
+            let slic = &s[i..i+2];
+            let ss = u8::from_str_radix(slic, 16).unwrap();
+            bytes.push(ss);
+        }
+        bytes
+    }
+    
+    fn _lpad(bin: &str, final_len: usize) -> String {
         let mut l = bin.len();
         let mut final_bin = "".to_owned();
         if l < final_len {
@@ -48,23 +98,28 @@ impl BIP39 {
             for _i in 0..l {
                 final_bin.push_str("0");
             }
+        } else if l > final_len {
+            final_bin.push_str(&bin[0..final_len]);
         }
         final_bin.push_str(bin);
         return final_bin;
     }
 
     fn _get_normalised_ent(srand_str: &mut String) -> String {
+        // we need to find sha256 of hex(entropy) not binary entropy string
+        let hexed = Self::_bin2hex(&srand_str.as_str());
         let checksum_bit_len = ENT_SZ[ENT_SZ_IDX] / 32; // from bip39
         // get sha256 of un-normalised entropy
         let mut hasher = Sha256::new();
-        hasher.update(srand_str.as_bytes());
+        hasher.update(Self::_hexstr2bytes(&hexed.as_str()));
         let result = hasher.finalize();
         // sha256 result is [u8] of 32 len -> 8x32 = 256 
-        let result_last_byte_bin = Self::_pad_left(format!("{:b}", result[31]).as_str(), 8);
+        let result_first_byte_bin = Self::_lpad(format!("{:b}", result[0]).as_str(), 8);
+      
         // now append last checksum_bit_len number of bits 
         // from sha256 of entropy, to the entropy string itself
-        // to make its length divisible of bip39 magic number 11! 
-        srand_str.push_str(&result_last_byte_bin[8-checksum_bit_len..]);
+        // to make its length divisible of bip39 magic number 11!
+        srand_str.push_str(&result_first_byte_bin[0..checksum_bit_len]);
         srand_str.to_string()
     }
     
@@ -75,8 +130,8 @@ impl BIP39 {
             let rnd_u32 = OsRng.next_u32();
             let bin_u32 = format!("{:b}", rnd_u32);
             // ensure binary is of 32 bits length!
-            let padded = Self::_pad_left(bin_u32.as_str(), 32);
-            // println!("\n[i]: {},\n\tu32: {}\n\tbin   : {}\n\tpadded: {}\n", i, rnd_u32, bin_u32, padded);
+            let padded = Self::_lpad(bin_u32.as_str(), 32);
+            
             srand_str.push_str(padded.as_str());
         }
         srand_str = Self::_get_normalised_ent(&mut srand_str);
@@ -96,7 +151,7 @@ impl BIP39 {
     
     fn generate_seed(& mut self, wordlist_path: &str) {
         let mut passphrase: String = "".to_owned();
-        println!("Enter a passphrase for extra level of security:");
+        println!("Enter a passphrase for extra level of security (press return key for none)):");
         std::io::stdin().read_line(&mut passphrase).expect("some problem");
         self.mnemonic =  Self::_generate_mnemonic(wordlist_path);
         let mut salt = "mnemonic ".to_owned();
@@ -105,7 +160,7 @@ impl BIP39 {
         let mut output: [u8; 32] = [0; 32];
         
         pbkdf2::derive(
-            pbkdf2::PBKDF2_HMAC_SHA256, 
+            pbkdf2::PBKDF2_HMAC_SHA512, 
             NonZeroU32::new(2048).unwrap(), 
             &salt.as_bytes(),
           self.mnemonic.as_bytes(), 
@@ -132,8 +187,6 @@ impl BIP39 {
         self.mnemonic.as_str()
     }
 
-
-    
 }
 
 // struct BIP32 {
@@ -147,7 +200,6 @@ impl BIP39 {
 // }
 
 fn main() {
-    println!("Starting...");
     dotenv().ok();
     let mut bip_39: BIP39 = BIP39 { 
         seed: String::from(""), 
@@ -156,5 +208,5 @@ fn main() {
     let path = std::env::var("EN_WORDLIST_PATH").unwrap();
     println!("generating mnemonic {}", path);
     bip_39.generate_seed(path.as_str());
-    println!("\nmnemonic: {}\nseed: {:}\n", bip_39.get_mnemonic(), bip_39.get_seed())
+    println!("\nmnemonic: {}\nseed: {:}\nseed len: {}", bip_39.get_mnemonic(), bip_39.get_seed(), bip_39.get_seed().len())
 }
