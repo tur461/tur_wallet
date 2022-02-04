@@ -110,17 +110,19 @@ impl BIP39 {
         std::io::stdin().read_line(&mut passphrase).expect("some problem");
         self.mnemonic =  Self::_generate_mnemonic(wordlist_path);
         let mut salt = "mnemonic".to_owned();
-        salt.push_str(&passphrase.as_str());
-        // let digest: MessageDigest = MessageDigest::sha256();
-        let mut output = Crypt::pbkdf2_512(&self.mnemonic.as_str(), &salt.as_str(), 2048, SEED_BYTE_SIZE);
-
+        // ensure no \r\n chars, so trim!
+        salt.push_str(&passphrase.as_str().trim());
         
-        // pbkdf2::derive(
-        //     pbkdf2::PBKDF2_HMAC_SHA512, 
-        //     NonZeroU32::new(2048).unwrap(), 
-        //     &salt.as_bytes(),
-        //     self.mnemonic.as_bytes(), 
-        //   &mut output);
+        let mut output = [0u8; SEED_BYTE_SIZE];
+        // let mut output = Crypt::pbkdf2_512(&self.mnemonic.as_str(), &salt.as_str(), 2048, SEED_BYTE_SIZE);
+
+        // working perfect!!
+        pbkdf2::derive(
+            pbkdf2::PBKDF2_HMAC_SHA512, 
+            NonZeroU32::new(2048).unwrap(), 
+            &salt.as_bytes(),
+            self.mnemonic.as_bytes(), 
+          &mut output);
         self.seed = hex::encode(output);
     }
 
