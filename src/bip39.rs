@@ -1,5 +1,5 @@
 #[path = "utils.rs"] mod utils;
-#[path = "crypt.rs"] mod crypt;
+// #[path = "crypt.rs"] mod crypt;
 
 use sha2::{Sha256, Digest};
 use rand::rngs::OsRng;
@@ -13,7 +13,7 @@ use std::{
 };
 
 use utils::Util;
-use crypt::Crypt;
+// use crypt::Crypt;
 
 const SEED_BYTE_SIZE: usize = 64;
 // const SEED_BYTE_SIZE: usize = 32;
@@ -34,10 +34,10 @@ pub struct BIP39 {
 
 impl BIP39 { 
 
-    pub fn new(mn: &str, sd: &str) -> BIP39 {
+    pub fn new() -> BIP39 {
         BIP39 {
-            mnemonic: String::from(mn),
-            seed: String::from(sd),
+            mnemonic: "".to_owned(),
+            seed: "".to_owned(),
         }
     }
     
