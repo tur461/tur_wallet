@@ -17,6 +17,22 @@ struct Root_Key_Meta {
 }
 
 impl Root_Key_Meta {
+    pub fn new() -> Root_Key_Meta {
+        let mut root_meta = Root_Key_Meta {
+            version: HashMap::new(),
+            depth_byte: [0u8; 1].to_vec(),
+            parent_fingerprint: [0u8; 4].to_vec(),
+            child_number_bytes: [0u8; 4].to_vec(),
+            master_chain_code_bytes: [0u8; 32].to_vec(),
+            master_secret_key_bytes: [0u8; 33].to_vec(),
+        };
+        root_meta.version.insert("MAIN_PUB".to_owned(), Util::hexstr2bytes("0488b21e"));
+        root_meta.version.insert("MAIN_PVT".to_owned(), Util::hexstr2bytes("0488ade4"));
+        root_meta.version.insert("TEST_PUB".to_owned(), Util::hexstr2bytes("043587cf"));
+        root_meta.version.insert("TEST_PVT".to_owned(), Util::hexstr2bytes("04358394"));
+
+        root_meta
+    }
     
     pub fn get_root_key(&mut self, master_secret_key_L: &[u8], master_chain_code_R: &[u8]) -> String {
         self.master_chain_code_bytes = master_chain_code_R[..].to_vec();
@@ -41,24 +57,10 @@ pub struct BIP44 {
 
 impl BIP44 {
     pub fn new() -> BIP44 {
-        let mut root_meta = Root_Key_Meta {
-            version: HashMap::new(),
-            depth_byte: [0u8; 1].to_vec(),
-            parent_fingerprint: [0u8; 4].to_vec(),
-            child_number_bytes: [0u8; 4].to_vec(),
-            master_chain_code_bytes: [0u8; 32].to_vec(),
-            master_secret_key_bytes: [0u8; 33].to_vec(),
-        };
-        root_meta.version.insert("MAIN_PUB".to_owned(), Util::hexstr2bytes("0488b21e"));
-        root_meta.version.insert("MAIN_PVT".to_owned(), Util::hexstr2bytes("0488ade4"));
-        root_meta.version.insert("TEST_PUB".to_owned(), Util::hexstr2bytes("043587cf"));
-        root_meta.version.insert("TEST_PVT".to_owned(), Util::hexstr2bytes("04358394"));
-
-
         BIP44 {
             root_key: "".to_owned(),
             master_private_key: "".to_owned(),
-            root_meta: root_meta
+            root_meta: Root_Key_Meta::new(),
         }
     }
 
