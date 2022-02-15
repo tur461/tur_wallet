@@ -58,7 +58,10 @@ impl BIP39 {
         hasher.update(Util::hexstr2bytes(&hexed.as_str()));
         let result = hasher.finalize();
         // sha256 result is [u8] of 32 len -> 8x32 = 256 
-        let result_first_byte_bin = Util::lpad(format!("{:b}", result[0]).as_str(), 8);
+        let result_first_byte_bin = Util::lpad(
+            format!("{:b}", result[0]).as_str(), 
+            8
+        );
       
         // now append first checksum_bit_len number of bits 
         // from sha256 of entropy, to the entropy string itself
@@ -74,7 +77,10 @@ impl BIP39 {
             let rnd_u32 = OsRng.next_u32();
             let bin_u32 = format!("{:b}", rnd_u32);
             // ensure binary is of 32 bits length!
-            let padded = Util::lpad(bin_u32.as_str(), 32);
+            let padded = Util::lpad(
+                bin_u32.as_str(), 
+                32
+            );
             
             srand_str.push_str(padded.as_str());
         }
@@ -114,7 +120,12 @@ impl BIP39 {
         salt.push_str(&passphrase.as_str().trim());
         
         let mut output = [0u8; SEED_BYTE_SIZE];
-        // let mut output = Crypt::pbkdf2_512(&self.mnemonic.as_str(), &salt.as_str(), 2048, SEED_BYTE_SIZE);
+        // let mut output = Crypt::pbkdf2_512(
+        //     &self.mnemonic.as_str(), 
+        //     &salt.as_str(), 
+        //     2048, 
+        //     SEED_BYTE_SIZE
+        // );
 
         // working perfect!!
         pbkdf2::derive(
@@ -122,7 +133,8 @@ impl BIP39 {
             NonZeroU32::new(2048).unwrap(), 
             &salt.as_bytes(),
             self.mnemonic.as_bytes(), 
-          &mut output);
+            &mut output
+        );
         self.seed = hex::encode(output);
     }
 

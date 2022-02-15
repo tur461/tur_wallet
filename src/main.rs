@@ -18,4 +18,12 @@ fn main() {
     let mut bip_44 = BIP44::new();
     bip_44.generate_root_key_from_seed(bip_39.get_seed());
     println!("root key: {:?}", bip_44.get_root_key());
+    let mut dp = bip_44.get_derv_path();
+    dp[0].harden();
+    dp[1].dec();
+    dp[3].inc();
+    dp[2].harden();
+    dp[2].inc();
+    println!("derv path: {:?}", dp);
+    // println!("max: {:?}", u128::MAX);
 }
